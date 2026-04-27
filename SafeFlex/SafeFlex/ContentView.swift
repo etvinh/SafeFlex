@@ -1,61 +1,46 @@
-//
-//  ContentView.swift
-//  SafeFlex
-//
-//  Created by Ethan Vinh on 4/26/26.
-//
-
 import SwiftUI
-import SwiftData
 
 struct ContentView: View {
-    @Environment(\.modelContext) private var modelContext
-    @Query private var items: [Item]
+    @Environment(AppState.self) private var appState
+    @State private var authScreen: AuthScreen = .welcome
+
+    enum AuthScreen {
+        case welcome, signIn, signUp
+    }
 
     var body: some View {
-        NavigationSplitView {
-            List {
-                ForEach(items) { item in
-                    NavigationLink {
-                        Text("Item at \(item.timestamp, format: Date.FormatStyle(date: .numeric, time: .standard))")
-                    } label: {
-                        Text(item.timestamp, format: Date.FormatStyle(date: .numeric, time: .standard))
-                    }
-                }
-                .onDelete(perform: deleteItems)
-            }
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    EditButton()
-                }
-                ToolbarItem {
-                    Button(action: addItem) {
-                        Label("Add Item", systemImage: "plus")
-                    }
-                }
-            }
-        } detail: {
-            Text("Select an item")
-        }
-    }
-
-    private func addItem() {
-        withAnimation {
-            let newItem = Item(timestamp: Date())
-            modelContext.insert(newItem)
-        }
-    }
-
-    private func deleteItems(offsets: IndexSet) {
-        withAnimation {
-            for index in offsets {
-                modelContext.delete(items[index])
+        Group {
+            if appState.isAuthenticated {
+                MainTabView()
+                    .transition(.move(edge: .trailing).combined(with: .opacity))
+            } else {
+                authFlow
+                    .transition(.move(edge: .leading).combined(with: .opacity))
             }
         }
+        .animation(.easeInOut(duration: 0.35), value: appState.isAuthenticated)
     }
-}
 
-#Preview {
-    ContentView()
-        .modelContainer(for: Item.self, inMemory: true)
+    @ViewBuilder
+    private var authFlow: some View {
+        switch authScreen {
+        case .welcome:
+            WelcomeView(
+                onGetStarted: { withAnimation { authScreen = .signUp } },
+                onSignIn: { withAnimation { authScreen = .signIn } }
+            )
+        case .signIn:
+            SignInView(
+                onBack: { withAnimation { authScreen = .welcome } },
+                onSuccess: { appState.signIn() },
+                onSignUp: { withAnimation { authScreen = .signUp } }
+            )
+        case .signUp:
+            SignUpView(
+                onBack: { withAnimation { authScreen = .welcome } },
+                onSuccess: { appState.signIn() },
+                onSignIn: { withAnimation { authScreen = .signIn } }
+            )
+        }
+    }
 }
