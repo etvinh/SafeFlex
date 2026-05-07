@@ -4,13 +4,15 @@ struct LiveSessionView: View {
     @Environment(AppState.self) private var appState
     @Environment(\.dismiss) private var dismiss
 
+    @State private var sensor = SensorService()
     @State private var seconds = 0
     @State private var reps = 0
     @State private var currentSet = 1
-    @State private var stability = 83
-    @State private var range = 60
     @State private var isPaused = false
     @State private var flash = false
+    @State private var showServerConfig = false
+    @State private var flexWasAboveHalf = false
+    @AppStorage("sensorAddress") private var serverAddress = "10.0.0.138:8080"
 
     private let totalReps = 12
     private let totalSets = 3
@@ -46,21 +48,28 @@ struct LiveSessionView: View {
                         .tracking(-0.3)
                 }
                 Spacer()
-                HStack(spacing: 5) {
-                    Circle()
-                        .fill(Theme.success)
-                        .frame(width: 6, height: 6)
-                        .shadow(color: Theme.success.opacity(0.7), radius: 3)
-                    Text("CONNECTED")
-                        .font(.system(size: 9, weight: .heavy))
-                        .foregroundStyle(Color(hex: "#15803D"))
-                        .tracking(1)
+                Button { showServerConfig = true } label: {
+                    HStack(spacing: 5) {
+                        Circle()
+                            .fill(sensor.isConnected ? Theme.success : Color(hex: "#DC2626"))
+                            .frame(width: 6, height: 6)
+                            .shadow(color: sensor.isConnected ? Theme.success.opacity(0.7) : .clear, radius: 3)
+                        Text(sensor.isConnected ? "CONNECTED" : "DISCONNECTED")
+                            .font(.system(size: 9, weight: .heavy))
+                            .foregroundStyle(sensor.isConnected ? Color(hex: "#15803D") : Color(hex: "#DC2626"))
+                            .tracking(1)
+                    }
+                    .padding(.horizontal, 10)
+                    .frame(height: 24)
+                    .background(sensor.isConnected ? Color(hex: "#F0FDF4") : Color(hex: "#FEF2F2"))
+                    .clipShape(Capsule())
+                    .overlay(
+                        Capsule().stroke(
+                            sensor.isConnected ? Color(hex: "#BBF7D0") : Color(hex: "#FECACA"),
+                            lineWidth: 1
+                        )
+                    )
                 }
-                .padding(.horizontal, 10)
-                .frame(height: 24)
-                .background(Color(hex: "#F0FDF4"))
-                .clipShape(Capsule())
-                .overlay(Capsule().stroke(Color(hex: "#BBF7D0"), lineWidth: 1))
             }
             .padding(.horizontal, 18)
             .frame(height: 64)
@@ -88,7 +97,11 @@ struct LiveSessionView: View {
 
             // Central region
             HStack(spacing: 8) {
-                MetricBar(value: stability, label: "Stability")
+                MetricBar(
+                    value: sensor.isConnected ? sensor.flexPercent : 0,
+                    label: "Flex",
+                    displayValue: sensor.isConnected ? String(Int(sensor.flex)) : "—"
+                )
 
                 VStack(spacing: 8) {
                     // Timer
@@ -112,7 +125,13 @@ struct LiveSessionView: View {
                     repRing
                 }
 
-                MetricBar(value: range, label: "Range")
+                MetricBar(
+                    value: sensor.isConnected ? sensor.stabilityPercent : 0,
+                    label: "Stability",
+                    displayValue: sensor.isConnected
+                        ? String(format: "%.1f", sensor.stability)
+                        : "—"
+                )
             }
             .padding(.horizontal, 12)
             .frame(maxHeight: .infinity)
@@ -120,6 +139,7 @@ struct LiveSessionView: View {
             // Actions
             VStack(spacing: 9) {
                 Button {
+                    sensor.disconnect()
                     dismiss()
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                         appState.showResults = true
@@ -174,7 +194,33 @@ struct LiveSessionView: View {
             .frame(height: 5)
         }
         .background(Theme.surface)
-        .onAppear { startTimers() }
+        .onAppear {
+            sensor.connect(to: serverAddress)
+            startTimer()
+        }
+        .onDisappear {
+            sensor.disconnect()
+        }
+        .onChange(of: sensor.flexPercent) { _, newValue in
+            guard !isPaused else { return }
+            if newValue >= 50 {
+                flexWasAboveHalf = true
+            } else if flexWasAboveHalf {
+                flexWasAboveHalf = false
+                countRep()
+            }
+        }
+        .alert("Sensor Address", isPresented: $showServerConfig) {
+            TextField("IP:Port", text: $serverAddress)
+                .keyboardType(.URL)
+                .autocorrectionDisabled()
+            Button("Connect") {
+                sensor.connect(to: serverAddress)
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Enter your Mac's IP and port (e.g. 192.168.1.42:8080).\nFind IP in System Settings → WiFi → Details.")
+        }
     }
 
     private var repRing: some View {
@@ -213,34 +259,32 @@ struct LiveSessionView: View {
         }
     }
 
-    private func startTimers() {
-        Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { timer in
+    private func startTimer() {
+        Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
             guard !isPaused else { return }
             seconds += 1
         }
+    }
 
-        Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { timer in
-            guard !isPaused else { return }
-            reps += 1
-            flash = true
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { flash = false }
-            stability = Int.random(in: 68...94)
-            range = Int.random(in: 50...83)
+    private func countRep() {
+        reps += 1
+        flash = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { flash = false }
 
-            if reps >= totalReps {
-                if currentSet >= totalSets {
-                    timer.invalidate()
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
-                        dismiss()
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                            appState.showResults = true
-                        }
+        if reps >= totalReps {
+            if currentSet >= totalSets {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+                    sensor.disconnect()
+                    dismiss()
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                        appState.showResults = true
                     }
-                } else {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                        currentSet += 1
-                        reps = 0
-                    }
+                }
+            } else {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    currentSet += 1
+                    reps = 0
+                    flexWasAboveHalf = false
                 }
             }
         }
@@ -266,6 +310,7 @@ struct PillBadge: View {
 struct MetricBar: View {
     var value: Int
     var label: String
+    var displayValue: String? = nil
 
     var body: some View {
         VStack(spacing: 7) {
@@ -285,7 +330,7 @@ struct MetricBar: View {
                     )
                     .frame(width: 40, height: 170 * CGFloat(value) / 100)
                     .shadow(color: Theme.success.opacity(0.28), radius: 4, y: -2)
-                    .animation(.easeInOut(duration: 0.7), value: value)
+                    .animation(.easeInOut(duration: 0.3), value: value)
             }
             .clipShape(RoundedRectangle(cornerRadius: 12))
 
@@ -294,7 +339,7 @@ struct MetricBar: View {
                     .font(.system(size: 8, weight: .bold))
                     .foregroundStyle(Theme.secondary)
                     .tracking(0.6)
-                Text("\(value)%")
+                Text(displayValue ?? "\(value)%")
                     .font(.system(size: 14, weight: .heavy))
                     .foregroundStyle(Theme.onSurface)
             }
