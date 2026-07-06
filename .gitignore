@@ -25,3 +25,13 @@ Pods/
 *.ipa
 *.dSYM.zip
 *.dSYM
+
+# xcode-build-server (machine-specific paths)
+buildServer.json
+
+# PlatformIO (Firmware/)
+.pio/
+
+# Python (Scripts/)
+__pycache__/
+*.pyc
