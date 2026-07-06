@@ -11,6 +11,7 @@ class AppState {
     var showUploadProtocol = false
     var lastWorkout: Workout?
     var activeExercise = "Shoulder Abduction"
+    var profileReturnTab: Tab = .dashboard
 
     enum Tab: String, CaseIterable {
         case dashboard, exercises, insights, profile

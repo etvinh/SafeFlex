@@ -5,7 +5,19 @@ struct ProfileView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            TopBarView(left: { SafeFlexLogo() }, right: { AvatarView() })
+            TopBarView(title: "Profile", left: {
+                Button {
+                    appState.activeTab = appState.profileReturnTab
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "chevron.left")
+                            .font(.system(size: 15, weight: .semibold))
+                        Text("Back")
+                            .font(.system(size: 15, weight: .semibold))
+                    }
+                    .foregroundStyle(Theme.primary)
+                }
+            }, right: { AvatarView() })
 
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 18) {

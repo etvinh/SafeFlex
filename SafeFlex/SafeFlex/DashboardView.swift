@@ -103,16 +103,6 @@ struct DashboardView: View {
                         // Weekly Adherence
                         weeklyAdherenceCard
 
-                        // Stats
-                        HStack(spacing: 10) {
-                            StatCard(title: "Pain Level", value: "2.4", suffix: "/10",
-                                     trend: "-12%", trendIcon: "arrow.down.right",
-                                     accentColor: Theme.primary)
-                            StatCard(title: "Mobility", value: "78°", suffix: nil,
-                                     trend: "+5°", trendIcon: "arrow.up.right",
-                                     accentColor: Theme.tertiary)
-                        }
-
                         Spacer().frame(height: 80)
                     }
                     .padding(.horizontal, 20)
@@ -293,47 +283,3 @@ struct DashboardView: View {
     }
 }
 
-struct StatCard: View {
-    var title: String
-    var value: String
-    var suffix: String?
-    var trend: String
-    var trendIcon: String
-    var accentColor: Color
-
-    var body: some View {
-        GlassCard {
-            VStack(alignment: .leading, spacing: 3) {
-                Text(title)
-                    .font(.system(size: 11))
-                    .foregroundStyle(Theme.secondary)
-                HStack(alignment: .lastTextBaseline, spacing: 2) {
-                    Text(value)
-                        .font(.system(size: 22, weight: .bold))
-                        .foregroundStyle(Theme.onSurface)
-                    if let suffix {
-                        Text(suffix)
-                            .font(.system(size: 11))
-                            .foregroundStyle(Theme.secondary)
-                    }
-                }
-                HStack(spacing: 3) {
-                    Image(systemName: trendIcon)
-                        .font(.system(size: 10))
-                    Text(trend)
-                        .font(.system(size: 10, weight: .bold))
-                }
-                .foregroundStyle(accentColor)
-                .padding(.top, 2)
-            }
-            .padding(15)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .overlay(alignment: .leading) {
-                Rectangle()
-                    .fill(accentColor)
-                    .frame(width: 4)
-                    .clipShape(UnevenRoundedRectangle(topLeadingRadius: 14, bottomLeadingRadius: 14))
-            }
-        }
-    }
-}

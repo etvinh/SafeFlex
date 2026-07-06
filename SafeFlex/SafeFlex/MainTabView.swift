@@ -22,7 +22,7 @@ struct MainTabView: View {
 
             // Custom bottom nav
             HStack(spacing: 0) {
-                ForEach(AppState.Tab.allCases, id: \.self) { tab in
+                ForEach(AppState.Tab.allCases.filter { $0 != .profile }, id: \.self) { tab in
                     TabButton(
                         tab: tab,
                         isActive: appState.activeTab == tab,

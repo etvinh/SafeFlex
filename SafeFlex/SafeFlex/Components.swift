@@ -18,34 +18,37 @@ struct GlassCard<Content: View>: View {
 
 struct SafeFlexLogo: View {
     var body: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "line.3.horizontal")
-                .font(.system(size: 18, weight: .medium))
-                .foregroundStyle(Theme.primary)
-            Text("SafeFlex")
-                .font(.system(size: 18, weight: .heavy))
-                .foregroundStyle(Color(hex: "#1D4ED8"))
-                .tracking(-0.5)
-        }
+        Text("SafeFlex")
+            .font(.system(size: 18, weight: .heavy))
+            .foregroundStyle(Color(hex: "#1D4ED8"))
+            .tracking(-0.5)
     }
 }
 
 struct AvatarView: View {
+    @Environment(AppState.self) private var appState
     var initials: String = "SJ"
     var size: CGFloat = 32
 
     var body: some View {
-        Circle()
-            .fill(Theme.primaryFixed)
-            .overlay(
-                Circle().stroke(Theme.primaryFixedDim, lineWidth: 1.5)
-            )
-            .overlay(
-                Text(initials)
-                    .font(.system(size: size * 0.33, weight: .heavy))
-                    .foregroundStyle(Theme.primary)
-            )
-            .frame(width: size, height: size)
+        Button {
+            if appState.activeTab != .profile {
+                appState.profileReturnTab = appState.activeTab
+                appState.activeTab = .profile
+            }
+        } label: {
+            Circle()
+                .fill(Theme.primaryFixed)
+                .overlay(
+                    Circle().stroke(Theme.primaryFixedDim, lineWidth: 1.5)
+                )
+                .overlay(
+                    Text(initials)
+                        .font(.system(size: size * 0.33, weight: .heavy))
+                        .foregroundStyle(Theme.primary)
+                )
+                .frame(width: size, height: size)
+        }
     }
 }
 
