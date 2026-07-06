@@ -122,7 +122,10 @@ struct DashboardView: View {
             .background(Theme.surface)
 
             // FAB
-            Button { appState.showLiveSession = true } label: {
+            Button {
+                appState.activeExercise = "Shoulder Abduction"
+                appState.showLiveSession = true
+            } label: {
                 HStack(spacing: 7) {
                     Image(systemName: "play.fill")
                         .font(.system(size: 14))

@@ -148,7 +148,10 @@ struct ExercisesView: View {
                                 }
                             }
                             Spacer()
-                            Button { appState.showLiveSession = true } label: {
+                            Button {
+                                appState.activeExercise = "Shoulder Abduction"
+                                appState.showLiveSession = true
+                            } label: {
                                 HStack(spacing: 5) {
                                     Image(systemName: "play.fill")
                                         .font(.system(size: 11))
@@ -178,7 +181,10 @@ struct ExercisesView: View {
 
             // Other exercises
             ForEach([("Wrist Flexion", "2 Sets • 15 Reps"), ("Neck Stretch", "3 Sets • 30s Hold")], id: \.0) { name, meta in
-                ExerciseRow(name: name, meta: meta) { appState.showLiveSession = true }
+                ExerciseRow(name: name, meta: meta) {
+                    appState.activeExercise = name
+                    appState.showLiveSession = true
+                }
             }
         }
     }

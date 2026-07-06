@@ -9,6 +9,8 @@ class AppState {
     var showDeviceSettings = false
     var showPersonalInfo = false
     var showUploadProtocol = false
+    var lastWorkout: Workout?
+    var activeExercise = "Shoulder Abduction"
 
     enum Tab: String, CaseIterable {
         case dashboard, exercises, insights, profile

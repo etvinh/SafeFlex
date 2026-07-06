@@ -12,6 +12,12 @@ struct LiveSessionView: View {
     @State private var flash = false
     @State private var showServerConfig = false
     @State private var flexWasAboveHalf = false
+    @State private var sessionStart = Date()
+    @State private var repPeakFlex: Double = 0
+    @State private var repStabilitySum: Double = 0
+    @State private var repStabilitySamples = 0
+    @State private var romPerRep: [Double] = []
+    @State private var stabilityPerRep: [Double] = []
     @AppStorage("sensorAddress") private var serverAddress = "10.0.0.138:8080"
 
     private let totalReps = 12
@@ -77,7 +83,7 @@ struct LiveSessionView: View {
 
             // Exercise info
             VStack(spacing: 3) {
-                Text("Shoulder Abduction")
+                Text(appState.activeExercise)
                     .font(.system(size: 15, weight: .bold))
                     .foregroundStyle(Theme.onSurface)
                 Text("Maintain steady tension. Lift arm smoothly to shoulder height.")
@@ -139,11 +145,7 @@ struct LiveSessionView: View {
             // Actions
             VStack(spacing: 9) {
                 Button {
-                    sensor.disconnect()
-                    dismiss()
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                        appState.showResults = true
-                    }
+                    endSession()
                 } label: {
                     HStack(spacing: 8) {
                         Image(systemName: "stop.circle.fill")
@@ -195,15 +197,19 @@ struct LiveSessionView: View {
         }
         .background(Theme.surface)
         .onAppear {
+            sessionStart = Date()
             sensor.connect(to: serverAddress)
             startTimer()
         }
         .onDisappear {
             sensor.disconnect()
         }
-        .onChange(of: sensor.flexPercent) { _, newValue in
-            guard !isPaused else { return }
-            if newValue >= 50 {
+        .onChange(of: sensor.flex) { _, newFlex in
+            guard !isPaused, sensor.isConnected else { return }
+            repPeakFlex = max(repPeakFlex, newFlex)
+            repStabilitySum += sensor.stability
+            repStabilitySamples += 1
+            if sensor.flexPercent >= 50 {
                 flexWasAboveHalf = true
             } else if flexWasAboveHalf {
                 flexWasAboveHalf = false
@@ -271,14 +277,21 @@ struct LiveSessionView: View {
         flash = true
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { flash = false }
 
+        // Record this rep: peak flex mapped to degrees (0-1000 -> 0-180°),
+        // stability averaged over the rep and mapped to percent (0-5 -> 0-100).
+        romPerRep.append(repPeakFlex / 1000 * 180)
+        let avgStability = repStabilitySamples > 0
+            ? repStabilitySum / Double(repStabilitySamples)
+            : 0
+        stabilityPerRep.append(min(100, max(0, avgStability / 5 * 100)))
+        repPeakFlex = 0
+        repStabilitySum = 0
+        repStabilitySamples = 0
+
         if reps >= totalReps {
             if currentSet >= totalSets {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
-                    sensor.disconnect()
-                    dismiss()
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                        appState.showResults = true
-                    }
+                    endSession()
                 }
             } else {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
@@ -287,6 +300,32 @@ struct LiveSessionView: View {
                     flexWasAboveHalf = false
                 }
             }
+        }
+    }
+
+    private func endSession() {
+        let workout = Workout(
+            id: UUID(),
+            exercise: appState.activeExercise,
+            startedAt: sessionStart,
+            endedAt: Date(),
+            durationSeconds: seconds,
+            totalReps: romPerRep.count,
+            setsCompleted: reps >= totalReps ? currentSet : currentSet - 1,
+            avgRomDegrees: romPerRep.isEmpty
+                ? 0 : romPerRep.reduce(0, +) / Double(romPerRep.count),
+            avgStabilityPercent: stabilityPerRep.isEmpty
+                ? 0 : stabilityPerRep.reduce(0, +) / Double(stabilityPerRep.count),
+            romPerRep: romPerRep,
+            stabilityPerRep: stabilityPerRep
+        )
+        appState.lastWorkout = workout
+        Task { await WorkoutUploader.upload(workout, sensorAddress: serverAddress) }
+
+        sensor.disconnect()
+        dismiss()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            appState.showResults = true
         }
     }
 }

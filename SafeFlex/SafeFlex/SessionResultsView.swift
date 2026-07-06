@@ -6,15 +6,31 @@ struct SessionResultsView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var showShareSheet = false
 
-    private let metrics: [(label: String, value: String, sub: String, color: Color, bg: Color)] = [
-        ("Total Reps", "36", "3 sets completed", Theme.primary, Color(hex: "#EFF6FF")),
-        ("Avg. ROM", "112°", "+8° improvement", Color(hex: "#15803D"), Color(hex: "#F0FDF4")),
-        ("Stability", "94%", "High precision", Color(hex: "#15803D"), Color(hex: "#F0FDF4")),
-        ("Pain Delta", "−2.5", "Decreased intensity", Color(hex: "#B45309"), Color(hex: "#FFFBEB")),
-    ]
+    private var workout: Workout? { appState.lastWorkout }
 
-    private let romPoints: [Double] = [78, 82, 88, 90, 95, 100, 102, 108, 104, 112, 110, 118]
-    private let stabPoints: [Double] = [76, 80, 86, 84, 88, 91, 89, 94, 91, 95, 93, 96]
+    private var metrics: [(label: String, value: String, sub: String, color: Color, bg: Color)] {
+        let reps = workout?.totalReps ?? 0
+        let sets = workout?.setsCompleted ?? 0
+        let avgRom = workout?.avgRomDegrees ?? 0
+        let peakRom = workout?.romPerRep.max() ?? 0
+        let stability = workout?.avgStabilityPercent ?? 0
+        return [
+            ("Total Reps", "\(reps)", "\(sets) sets completed", Theme.primary, Color(hex: "#EFF6FF")),
+            ("Avg. ROM", "\(Int(avgRom.rounded()))°", "Peak: \(Int(peakRom.rounded()))°",
+             Color(hex: "#15803D"), Color(hex: "#F0FDF4")),
+            ("Stability", "\(Int(stability.rounded()))%",
+             stability >= 90 ? "High precision" : "Keep it steady",
+             Color(hex: "#15803D"), Color(hex: "#F0FDF4")),
+        ]
+    }
+
+    private var romPoints: [Double] { workout?.romPerRep ?? [] }
+    private var stabPoints: [Double] { workout?.stabilityPerRep ?? [] }
+
+    private func rangeLabel(_ value: Double?, suffix: String) -> String {
+        guard let value else { return "—" }
+        return "\(Int(value.rounded()))\(suffix)"
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -61,7 +77,7 @@ struct SessionResultsView: View {
                         .font(.system(size: 22, weight: .heavy))
                         .foregroundStyle(Theme.onSurface)
                         .tracking(-0.5)
-                    Text("Shoulder Abduction • \(Date.now.formatted(.dateTime.month(.abbreviated).day().year()))")
+                    Text("\(workout?.exercise ?? "Shoulder Abduction") • \((workout?.endedAt ?? .now).formatted(.dateTime.month(.abbreviated).day().year()))")
                         .font(.system(size: 13))
                         .foregroundStyle(Theme.secondary)
                         .padding(.top, 3)
@@ -96,13 +112,13 @@ struct SessionResultsView: View {
                     // ROM chart
                     ResultChartCard(
                         title: "Range of Motion (ROM)",
-                        badge: "Peak: 118°",
+                        badge: "Peak: \(rangeLabel(romPoints.max(), suffix: "°"))",
                         badgeColor: Theme.primary,
                         badgeBg: Color(hex: "#EFF6FF"),
                         data: romPoints,
                         lineColor: Theme.primary,
-                        yLow: "78°",
-                        yHigh: "118°"
+                        yLow: rangeLabel(romPoints.min(), suffix: "°"),
+                        yHigh: rangeLabel(romPoints.max(), suffix: "°")
                     )
 
                     // Stability chart
@@ -113,8 +129,8 @@ struct SessionResultsView: View {
                         badgeBg: Color(hex: "#F0FDF4"),
                         data: stabPoints,
                         lineColor: Color(hex: "#16A34A"),
-                        yLow: "75%",
-                        yHigh: "96%"
+                        yLow: rangeLabel(stabPoints.min(), suffix: "%"),
+                        yHigh: rangeLabel(stabPoints.max(), suffix: "%")
                     )
 
                     // Actions
@@ -174,6 +190,13 @@ struct ResultChartCard: View {
     var yLow: String
     var yHigh: String
 
+    private var repLabels: [String] {
+        let n = data.count
+        guard n > 0 else { return [] }
+        let marks = n < 4 ? Array(1...n) : [1, (n + 2) / 3, (2 * n + 1) / 3, n]
+        return marks.map { "Rep \($0)" }
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             HStack {
@@ -192,11 +215,11 @@ struct ResultChartCard: View {
             .padding(.bottom, 9)
 
             HStack {
-                ForEach(["Rep 1", "Rep 4", "Rep 8", "Rep 12"], id: \.self) { label in
+                ForEach(repLabels, id: \.self) { label in
                     Text(label)
                         .font(.system(size: 8))
                         .foregroundStyle(Theme.outline)
-                    if label != "Rep 12" { Spacer() }
+                    if label != repLabels.last { Spacer() }
                 }
             }
             .padding(.bottom, 3)
