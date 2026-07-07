@@ -12,8 +12,21 @@ struct ContentView: View {
     var body: some View {
         Group {
             if appState.isAuthenticated {
-                MainTabView()
+                if appState.needsOnboarding {
+                    OnboardingView(
+                        viewModel: OnboardingViewModel(
+                            profiles: container.profiles,
+                            recommender: container.recommender
+                        ),
+                        onComplete: {
+                            withAnimation { appState.needsOnboarding = false }
+                        }
+                    )
                     .transition(.move(edge: .trailing).combined(with: .opacity))
+                } else {
+                    MainTabView()
+                        .transition(.move(edge: .trailing).combined(with: .opacity))
+                }
             } else {
                 authFlow
                     .transition(.move(edge: .leading).combined(with: .opacity))
@@ -34,16 +47,24 @@ struct ContentView: View {
             SignInView(
                 viewModel: AuthViewModel(auth: container.auth),
                 onBack: { withAnimation { authScreen = .welcome } },
-                onSuccess: { appState.signIn(as: $0) },
+                onSuccess: signIn,
                 onSignUp: { withAnimation { authScreen = .signUp } }
             )
         case .signUp:
             SignUpView(
                 viewModel: AuthViewModel(auth: container.auth),
                 onBack: { withAnimation { authScreen = .welcome } },
-                onSuccess: { appState.signIn(as: $0) },
+                onSuccess: signIn,
                 onSignIn: { withAnimation { authScreen = .signIn } }
             )
+        }
+    }
+
+    /// First-time users (no stored profile) get onboarding before the app.
+    private func signIn(as user: User) {
+        Task {
+            appState.needsOnboarding = (try? await container.profiles.currentProfile()) == nil
+            appState.signIn(as: user)
         }
     }
 }

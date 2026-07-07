@@ -13,6 +13,7 @@ class AppState {
     var activeExercise = "Shoulder Abduction"
     var profileReturnTab: Tab = .dashboard
     var currentUser: User?
+    var needsOnboarding = false
 
     enum Tab: String, CaseIterable {
         case dashboard, exercises, insights, profile

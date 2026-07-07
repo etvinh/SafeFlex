@@ -31,39 +31,6 @@ struct DashboardView: View {
                         }
                         .padding(.bottom, 4)
 
-                        // Upload Protocol CTA
-                        Button { appState.showUploadProtocol = true } label: {
-                            HStack(spacing: 13) {
-                                Circle()
-                                    .fill(Theme.primary.opacity(0.1))
-                                    .frame(width: 44, height: 44)
-                                    .overlay(
-                                        Image(systemName: "doc.badge.arrow.up")
-                                            .font(.system(size: 18))
-                                            .foregroundStyle(Theme.primary)
-                                    )
-                                VStack(alignment: .leading, spacing: 1) {
-                                    Text("Upload Prescribed Protocol")
-                                        .font(.system(size: 13, weight: .bold))
-                                        .foregroundStyle(Theme.onSurface)
-                                    Text("AI creates your exercise regimen automatically")
-                                        .font(.system(size: 11))
-                                        .foregroundStyle(Theme.secondary)
-                                }
-                                Spacer()
-                                Image(systemName: "plus.circle.fill")
-                                    .font(.system(size: 20))
-                                    .foregroundStyle(Theme.primary)
-                            }
-                            .padding(15)
-                            .background(Theme.primaryFixed.opacity(0.3))
-                            .clipShape(RoundedRectangle(cornerRadius: 14))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 14)
-                                    .stroke(Theme.primary.opacity(0.3), style: StrokeStyle(lineWidth: 2, dash: [6]))
-                            )
-                        }
-
                         // Sensor Status
                         GlassCard {
                             HStack(spacing: 13) {

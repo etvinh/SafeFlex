@@ -13,6 +13,8 @@ struct SafeFlexApp: App {
                 .task {
                     // Restore a persisted session so users stay signed in.
                     if let user = await container.auth.currentUser() {
+                        appState.needsOnboarding =
+                            (try? await container.profiles.currentProfile()) == nil
                         appState.signIn(as: user)
                     }
                 }
